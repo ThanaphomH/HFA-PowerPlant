@@ -24,7 +24,7 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
     // Create HiGHS instance
     Highs highs;
     highs.setOptionValue("log_to_console", false); // Suppress solver output
-    highs.setOptionValue("threads", 6); // Use 4 threads
+    highs.setOptionValue("threads", 4); // Use 4 threads
     highs.setOptionValue("mip_rel_gap", 0.01); // 1% MIP gap
 
     // Initialize model

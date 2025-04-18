@@ -16,4 +16,8 @@ check:
 	python iscovered.py < check_answer.txt
 
 run:
-	python run.py < input.txt
+	docker run --rm -i power_plant_solver < input.txt
+
+# time docker run --rm -i power_plant_solver < input.txt
+
+# docker build --platform=linux/amd64 -t power_plant_solver .
