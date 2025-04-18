@@ -25,8 +25,7 @@ def solve_power_plants(n, adj):
     
     # Constraints: Each city i must be covered (x[i] + sum(x[j] for j in N(i)) >= 1)
     for i in range(n):
-        for j in adj[i]:
-            model += x[i] + x[j] >= 1, f'cover_{i}_{j}'
+        model += x[i] + lpSum(x[j] for j in adj[i]) >= 1, f'cover_{i}'
     
     # Solve the ILP (uses CBC by default)
     model.solve()
