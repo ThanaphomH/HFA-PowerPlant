@@ -10,3 +10,7 @@ pull:
 	@echo "Pulling docker image from Docker Hub"
 	docker pull $(DOCKER_IMAGE_NAME):latest
 	@echo "Docker image pulled from Docker Hub"
+
+check:
+	@echo "Checking answers"
+	python iscovered.py < input.txt
