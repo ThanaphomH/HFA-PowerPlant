@@ -13,4 +13,7 @@ pull:
 
 check:
 	@echo "Checking answers"
-	python iscovered.py < input.txt
+	python iscovered.py < check_answer.txt
+
+run:
+	python run.py < input.txt
