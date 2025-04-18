@@ -1,4 +1,4 @@
-from pulp import LpProblem, LpMinimize, LpVariable, lpSum, LpStatus
+from pulp import LpProblem, LpMinimize, LpVariable, lpSum, LpStatus, PULP_CBC_CMD
 
 def read_graph():
     # Read number of nodes and edges
@@ -28,7 +28,7 @@ def solve_power_plants(n, adj):
         model += x[i] + lpSum(x[j] for j in adj[i]) >= 1, f'cover_{i}'
     
     # Solve the ILP (uses CBC by default)
-    model.solve()
+    model.solve(solver=PULP_CBC_CMD(gapRel=0.01, threads=4))
     
     # Check if solution is optimal
     if LpStatus[model.status] == 'Optimal':
