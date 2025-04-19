@@ -25,3 +25,10 @@ run-docker:
 
 build-docker:
 	docker build --platform=linux/amd64 -t ${DOCKER_IMAGE_NAME} .
+
+
+TRY_DOCKER_NAME=
+
+run-other:
+	docker pull ${TRY_DOCKER_NAME}
+	time docker run --rm -v ./data/input:/input  -v ./data/output:/output ${TRY_DOCKER_NAME} /input/ring-25000-25000 /output/ring-25000-25000.out
