@@ -1,23 +1,27 @@
-DOCKER_IMAGE_NAME=thanaphomh/hpa-powerplant
+DOCKER_IMAGE_NAME=thanaphomh/hpa-powerplant-solver
+INPUT_FILE=grid-12-17
+OUTPUT_FILE=grid-12-17.out
+
 publish:
 	@echo "Building docker image"
-	docker build -t $(DOCKER_IMAGE_NAME):latest .
+	docker build -t $(DOCKER_IMAGE_NAME) .
 	@echo "Publishing docker image to Docker Hub"
-	docker push $(DOCKER_IMAGE_NAME):latest
+	docker push $(DOCKER_IMAGE_NAME)
 	@echo "Docker image published to Docker Hub"
 
 pull:
 	@echo "Pulling docker image from Docker Hub"
-	docker pull $(DOCKER_IMAGE_NAME):latest
+	docker pull $(DOCKER_IMAGE_NAME)
 	@echo "Docker image pulled from Docker Hub"
 
 check:
 	@echo "Checking answers"
 	python iscovered.py < check_answer.txt
 
-run:
-	docker run --rm -i power_plant_solver < input.txt
+run-docker:
+	docker run --rm -i ${DOCKER_IMAGE_NAME} < input.txt
 
-# time docker run --rm -i power_plant_solver < input.txt
+# time docker run --rm -v ./data/input:/input  -v ./data/output:/output thanaphomh/hpa-powerplant-solver /input/grid-12-17 /output/grid-12-17.out
 
-# docker build --platform=linux/amd64 -t power_plant_solver .
+build-docker:
+	docker build --platform=linux/amd64 -t ${DOCKER_IMAGE_NAME} .
