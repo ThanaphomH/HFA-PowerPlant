@@ -19,7 +19,7 @@ check:
 	python iscovered.py < check_answer.txt
 
 run-docker:
-	docker run --rm -i ${DOCKER_IMAGE_NAME} < input.txt
+	docker run --rm -v ./data/input:/input  -v ./data/output:/output ${TRY_DOCKER_NAME} /input/{INPUT_FILE} /output/{OUTPUT_FILE}
 
 # time docker run --rm -v ./data/input:/input  -v ./data/output:/output thanaphomh/hpa-powerplant-solver /input/grid-12-17 /output/grid-12-17.out
 
