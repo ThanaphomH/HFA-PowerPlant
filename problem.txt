@@ -1,0 +1,86 @@
+2110452 - High Performance Computing (2022/S2)
+
+Instructor; Krerk Piromsopa, Ph.D.
+
+2024/S2 - High Performance Computing
+Term Project
+Instructor: Krerk Piromsopa, Ph.D.
+
+
+(40 points) You are asked to solve the Power Plant placing problem. This is a variation of the vertex coverage problem, which is known to be an NP-Complete problem. Assuming that a power plant can be installed in any city. A city with a power plant can only power itself and adjacent cities (with connected edges).  Please find a minimal solution for cities with power plants installed to provide power for all cities.
+
+
+Each input file will contain the number of nodes (first line), the number of edges (second line), and connection between nodes. (You may load sample input files from here[1])
+
+Input file
+
+6
+
+7
+
+2 4
+
+4 1
+
+2 0
+
+0 3
+
+4 3
+
+3 5
+
+1 5
+
+
+Output file container a binary string of 1 and 0. One is a city with a power plant. Zero is a city without a power plant. (You may output multiple lines. Only the last line will be used for validating.)
+
+Output file
+
+000110
+
+Grading
+30 points - Your program will run against at least 15 input sets. For each correct output that can run within 3 minutes, you will get 2 points. Any correct solution that took longer than 3 minutes will get 1 point. However, the overall execution time of a particular solution must not exceed 5 minutes.
+
+
+10 points - This is a ranking score. One input set will be selected as a benchmark. Your program will be run 5 times. The average time will be used for grading. Only the correct solutions will be counted. The average execution of your program will be used for ranking. Top 5 persons with the best time will get 10 points.  Next 5 people will get 8 points. The rest will get 5 points.
+
+
+Bonus 10 points - On a selected benchmark, any of you that can achieve an average time faster than my average time, will get extra 10 points. (This should be high enough to earn you an “A” for this class.)
+
+Submission
+You have to create a container image and publish it on a public repository (eg. gitlab or docker hub). Only submit the image repository to me. I (or my bot) will pull it down and grade it for you.
+
+
+The command will be executed like this.
+
+
+$ time docker run -v data/input:/input  -v data/output:/output [your docker image] /input/grid-6-7.txt /output/grid-6-7.out
+
+
+Grading machine.
+Tentatively, the machine for grading will be:
+
+
+CPU: AMD Ryzen 5 2600 (6 cores x 2 threads/core) – maximum of 12 threads
+
+RAM: 16GB of memory.
+
+
+My harddrive is a solid state drive. It should be fast enough.
+
+
+
+
+Note
+
+A man should know his limitations.
+
+It is possible to write a program with 5 lines of code that just works.
+
+So start early. This might take more time than you expected.
+
+
+This content is for educational purposes only.
+
+[1] https://drive.google.com/drive/folders/1VDphaIBpYNycU6XwmmXyAye45rr7kfQc?usp=sharing

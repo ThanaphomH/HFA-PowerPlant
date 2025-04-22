@@ -33,44 +33,39 @@ pair<int, vector<vector<int>>> read_graph(ifstream& in) {
     return {n, adj};
 }
 
-// Function to find a greedy dominating set
+// Function to find a greedy dominating set 
 vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
-    vector<bool> covered(n, false); // Track covered vertices
-    vector<int> solution; // Store the solution (selected vertices)
-    vector<int> uncovered_count(n, 0); // Track number of uncovered neighbors for each vertex   
-    priority_queue<pair<int, int>> pq; // Priority queue to select vertex with max uncovered neighbors {uncovered_count, vertex}
-    set<int> active_vertices; // Track vertices that are not yet covered or selected
+    vector<bool> covered(n, false);
+    vector<int> solution;
+    vector<int> uncovered_count(n, 0);
+    priority_queue<pair<int, int>> pq;
+    set<int> active_vertices;
 
-    // Initialize uncovered counts and priority queue
     for (int i = 0; i < n; ++i) {
-        uncovered_count[i] = adj[i].size() + 1; // Include self
+        uncovered_count[i] = adj[i].size() + 1;
         pq.push({uncovered_count[i], i});
         active_vertices.insert(i);
     }
 
     while (!active_vertices.empty()) {
-        // Get vertex with maximum uncovered neighbors
         while (!pq.empty() && covered[pq.top().second]) {
-            pq.pop(); 
+            pq.pop();
         }
-        if (pq.empty()) break; // All vertices covered
+        if (pq.empty()) break;
 
         int best_vertex = pq.top().second;
         pq.pop();
 
-        if (covered[best_vertex]) continue; // Skip if already covered
+        if (covered[best_vertex]) continue;
 
-        // Select the vertex
         solution.push_back(best_vertex);
         covered[best_vertex] = true;
         active_vertices.erase(best_vertex);
 
-        // Update neighbors
         for (int j : adj[best_vertex]) {
             if (!covered[j]) {
                 covered[j] = true;
                 active_vertices.erase(j);
-                // Update uncovered counts for neighbors of j
                 for (int k : adj[j]) {
                     if (!covered[k]) {
                         --uncovered_count[k];
@@ -80,7 +75,6 @@ vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
             }
         }
 
-        // Update uncovered counts for vertices that had best_vertex as a neighbor
         for (int j : adj[best_vertex]) {
             for (int k : adj[j]) {
                 if (!covered[k]) {
@@ -94,22 +88,72 @@ vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
     return solution;
 }
 
+// Local search refinement
+string refine_solution(string result, int n, const vector<vector<int>>& adj) {
+    vector<int> plants;
+    for (int i = 0; i < n; ++i) if (result[i] == '1') plants.push_back(i);
+    for (size_t i = 0; i < plants.size(); ++i) {
+        int v = plants[i];
+        result[v] = '0';
+        bool valid = true;
+        for (int u = 0; u < n; ++u) {
+            bool u_covered = result[u] == '1';
+            for (int w : adj[u]) if (result[w] == '1') u_covered = true;
+            if (!u_covered) {
+                valid = false;
+                break;
+            }
+        }
+        if (!valid) result[v] = '1';
+    }
+    return result;
+}
+
 // Function to solve power plant placement using HiGHS
 string solve_power_plants(int n, const vector<vector<int>>& adj) {
 
     // Create HiGHS instance
     Highs highs;
-    highs.setOptionValue("log_to_console", false); // Suppress solver output
+    // highs.setOptionValue("log_to_console", false); // Suppress solver output
     highs.setOptionValue("threads", 6); // Set number of threads
-    highs.setOptionValue("mip_rel_gap", 0.1); // MIP gap
-    highs.setOptionValue("mip_heuristic_effort", 0.5); // Set heuristic effort
-    highs.setOptionValue("mip_improving_solution", false);
-    highs.setOptionValue("presolve", "on");
+    highs.setOptionValue("mip_rel_gap", 0.1);
+    highs.setOptionValue("mip_heuristic_effort", 0.5);
+    highs.setOptionValue("time_limit", 15.0);
+    highs.setOptionValue("presolve", "off");
+
+    // Preprocess: Dominated, isolated, and degree-1 vertices
+    // vector<bool> necessary(n, true), active(n, true);
+    // for (int i = 0; i < n; ++i) {
+    //     if (adj[i].empty()) {
+    //         active[i] = false;
+    //         necessary[i] = true;
+    //     } else {
+    //         for (int j : adj[i]) {
+    //             bool dominated = true;
+    //             for (int k : adj[i]) {
+    //                 if (k != j && find(adj[j].begin(), adj[j].end(), k) == adj[j].end()) {
+    //                     dominated = false;
+    //                     break;
+    //                 }
+    //             }
+    //             if (dominated && find(adj[j].begin(), adj[j].end(), i) != adj[j].end()) {
+    //                 necessary[i] = false;
+    //                 break;
+    //             }
+    //         }
+    //         if (adj[i].size() == 1) {
+    //             active[i] = false; // Handle degree-1 in constraints
+    //         }
+    //     }
+    // }
 
     vector<int> greedy_solution = greedy_dominating_set(n, adj);
     HighsSolution start_solution;
     start_solution.col_value.resize(n, 0.0);
     for (int i : greedy_solution) start_solution.col_value[i] = 1.0;
+    for (int i = 0; i < n; ++i) {
+        if (adj[i].empty()) start_solution.col_value[i] = 1.0;
+    }
 
     // Pass starting solution (HiGHS may require MIP start API in future versions)
     highs.setSolution(start_solution);
@@ -203,6 +247,21 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
     //     }
     // }
 
+    // Strengthened constraints for degree-1 vertices
+    // for (int i = 0; i < n; ++i) {
+    //     if (adj[i].size() == 1) {
+    //         int j = adj[i][0];
+    //         index.push_back(i);
+    //         index.push_back(j);
+    //         value.push_back(1.0);
+    //         value.push_back(1.0);
+    //         start.push_back(index.size());
+    //         row_lower.push_back(1.0);
+    //         row_upper.push_back(kHighsInf);
+    //         lp.num_row_++;
+    //     }
+    // }
+
     lp.a_matrix_.format_ = MatrixFormat::kColwise;
     lp.a_matrix_.start_ = start;
     lp.a_matrix_.index_ = index;
@@ -218,7 +277,7 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
 
     // Check solution status
     HighsModelStatus model_status = highs.getModelStatus();
-    if (model_status == HighsModelStatus::kOptimal) {
+    if (model_status == HighsModelStatus::kOptimal || model_status == HighsModelStatus::kTimeLimit) {
         // Get solution
         vector<double> solution = highs.getSolution().col_value;
         string result(n, '0');
@@ -227,6 +286,8 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
                 result[i] = '1';
             }
         }
+
+        result = refine_solution(result, n, adj);
 
         return result;
     } else {
