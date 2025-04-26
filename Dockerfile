@@ -26,7 +26,7 @@ WORKDIR /app
 COPY run.cpp .
 
 # Compile the program
-RUN g++ -O3 run.cpp -o power_plant -I/usr/local/include/highs -L/usr/local/lib -lhighs -lz
+RUN g++ -O2 run.cpp -o power_plant -I/usr/local/include/highs -L/usr/local/lib -lhighs -lz
 
 # Set ENTRYPOINT to run the solver
 ENTRYPOINT ["/app/power_plant"]
