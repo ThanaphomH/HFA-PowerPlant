@@ -21,7 +21,7 @@ check:
 run-docker:
 	docker run --rm -v ./data/input:/input  -v ./data/output:/output ${DOCKER_IMAGE_NAME} /input/{INPUT_FILE} /output/{OUTPUT_FILE}
 
-# time docker run --rm -v ./data/input:/input  -v ./data/output:/output thanaphomh/hpa-powerplant-solver /input/grid-12-17 /output/grid-12-17.out
+# time docker run --rm -v ./data/input:/input  -v ./data/output:/output thanaphomh/hpa-powerplant-solver /input/ring-25000-25000 /output/ring-25000-25000.out
 
 build-docker:
 	docker build --platform=linux/amd64 -t ${DOCKER_IMAGE_NAME} .

@@ -10,21 +10,62 @@
 using namespace std;
 
 // Function to read graph input
-pair<int, vector<vector<int>>> read_graph(ifstream& in) {
-    int n, m;
-    if (!(in >> n >> m)) {
-        throw runtime_error("Failed to read n or m");
+pair<int, vector<vector<int>>> read_graph(const char* filename) {
+    // Open file
+    FILE* file = fopen(filename, "r");
+    if (!file) {
+        throw runtime_error("Failed to open file: " + string(filename));
     }
 
+    // Get file size
+    fseek(file, 0, SEEK_END);
+    size_t file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // Read entire file into buffer
+    vector<char> buffer(file_size + 1);
+    size_t bytes_read = fread(buffer.data(), 1, file_size, file);
+    buffer[bytes_read] = '\0'; // Null-terminate for parsing
+    fclose(file);
+
+    if (bytes_read != file_size) {
+        throw runtime_error("Failed to read file");
+    }
+
+    // Parse buffer
+    int n, m;
+    const char* ptr = buffer.data();
+    
+    // Read n and m
+    auto read_int = [&ptr]() {
+        while (*ptr && (*ptr < '0' || *ptr > '9')) ++ptr; // Skip non-digits
+        int val = 0;
+        while (*ptr >= '0' && *ptr <= '9') {
+            val = val * 10 + (*ptr - '0');
+            ++ptr;
+        }
+        return val;
+    };
+
+    n = read_int();
+    m = read_int();
+
+    if (n <= 0 || m < 0) {
+        throw runtime_error("Invalid n or m");
+    }
+
+    // Initialize adjacency list
     vector<vector<int>> adj(n);
     for (auto& neighbors : adj) {
-        neighbors.reserve(max(4, m / n + 1)); // Heuristic: avg degree or min 4
+        neighbors.reserve(max(4, m / n + 1)); // Same heuristic
     }
 
+    // Read m edges
     for (int i = 0; i < m; ++i) {
-        int u, v;
-        if (!(in >> u >> v)) {
-            throw runtime_error("Failed to read edge " + to_string(i));
+        int u = read_int();
+        int v = read_int();
+        if (u < 0 || u >= n || v < 0 || v >= n) {
+            throw runtime_error("Invalid vertex in edge " + to_string(i));
         }
         adj[u].push_back(v);
         adj[v].push_back(u);
@@ -88,64 +129,15 @@ vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
     return solution;
 }
 
-// Local search refinement
-string refine_solution(string result, int n, const vector<vector<int>>& adj) {
-    vector<int> plants;
-    for (int i = 0; i < n; ++i) if (result[i] == '1') plants.push_back(i);
-    for (size_t i = 0; i < plants.size(); ++i) {
-        int v = plants[i];
-        result[v] = '0';
-        bool valid = true;
-        for (int u = 0; u < n; ++u) {
-            bool u_covered = result[u] == '1';
-            for (int w : adj[u]) if (result[w] == '1') u_covered = true;
-            if (!u_covered) {
-                valid = false;
-                break;
-            }
-        }
-        if (!valid) result[v] = '1';
-    }
-    return result;
-}
-
 // Function to solve power plant placement using HiGHS
 string solve_power_plants(int n, const vector<vector<int>>& adj) {
-
     // Create HiGHS instance
     Highs highs;
-    // highs.setOptionValue("log_to_console", false); // Suppress solver output
-    highs.setOptionValue("threads", 6); // Set number of threads
+    highs.setOptionValue("log_to_console", false); // Suppress solver output
+    highs.setOptionValue("threads", 12); // Set number of threads
     highs.setOptionValue("mip_rel_gap", 0.1);
     highs.setOptionValue("mip_heuristic_effort", 0.5);
-    highs.setOptionValue("time_limit", 15.0);
-    highs.setOptionValue("presolve", "off");
-
-    // Preprocess: Dominated, isolated, and degree-1 vertices
-    // vector<bool> necessary(n, true), active(n, true);
-    // for (int i = 0; i < n; ++i) {
-    //     if (adj[i].empty()) {
-    //         active[i] = false;
-    //         necessary[i] = true;
-    //     } else {
-    //         for (int j : adj[i]) {
-    //             bool dominated = true;
-    //             for (int k : adj[i]) {
-    //                 if (k != j && find(adj[j].begin(), adj[j].end(), k) == adj[j].end()) {
-    //                     dominated = false;
-    //                     break;
-    //                 }
-    //             }
-    //             if (dominated && find(adj[j].begin(), adj[j].end(), i) != adj[j].end()) {
-    //                 necessary[i] = false;
-    //                 break;
-    //             }
-    //         }
-    //         if (adj[i].size() == 1) {
-    //             active[i] = false; // Handle degree-1 in constraints
-    //         }
-    //     }
-    // }
+    highs.setOptionValue("presolve", "on");
 
     vector<int> greedy_solution = greedy_dominating_set(n, adj);
     HighsSolution start_solution;
@@ -154,9 +146,6 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
     for (int i = 0; i < n; ++i) {
         if (adj[i].empty()) start_solution.col_value[i] = 1.0;
     }
-
-    // Pass starting solution (HiGHS may require MIP start API in future versions)
-    highs.setSolution(start_solution);
 
     // Initialize model
     HighsLp lp;
@@ -204,64 +193,6 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
         start[i + 1] = index.size();
     }
 
-    // // Add clique inequalities
-    // for (int i = 0; i < n; ++i) {
-    //     for (int j : adj[i]) {
-    //         for (int k : adj[j]) {
-    //             if (k > j && find(adj[i].begin(), adj[i].end(), k) != adj[i].end()) {
-    //                 index.push_back(i); index.push_back(j); index.push_back(k);
-    //                 value.push_back(1.0); value.push_back(1.0); value.push_back(1.0);
-    //                 start.push_back(index.size());
-    //                 row_lower.push_back(1.0);
-    //                 row_upper.push_back(kHighsInf);
-    //                 lp.num_row_++;
-    //             }
-    //         }
-    //     }
-    // }
-
-    // // Symmetry Breaking
-    // for (int i = 0; i < n; ++i) {
-    //     for (int j = i + 1; j < n; ++j) {
-    //         if (adj[i] == adj[j]) { // Identical neighborhoods
-    //             index.push_back(i); index.push_back(j);
-    //             value.push_back(1.0); value.push_back(-1.0);
-    //             start.push_back(index.size());
-    //             row_lower.push_back(0.0); // x_i <= x_j
-    //             row_upper.push_back(0.0);
-    //             lp.num_row_++;
-    //         }
-    //     }
-    // }
-
-    // // Strengthen Constraints
-    // for (int i = 0; i < n; ++i) {
-    //     if (adj[i].size() == 1) {
-    //         int j = adj[i][0];
-    //         index.push_back(i); index.push_back(j);
-    //         value.push_back(1.0); value.push_back(1.0);
-    //         start.push_back(index.size());
-    //         row_lower.push_back(1.0); // x_i + x_j >= 1
-    //         row_upper.push_back(kHighsInf);
-    //         lp.num_row_++;
-    //     }
-    // }
-
-    // Strengthened constraints for degree-1 vertices
-    // for (int i = 0; i < n; ++i) {
-    //     if (adj[i].size() == 1) {
-    //         int j = adj[i][0];
-    //         index.push_back(i);
-    //         index.push_back(j);
-    //         value.push_back(1.0);
-    //         value.push_back(1.0);
-    //         start.push_back(index.size());
-    //         row_lower.push_back(1.0);
-    //         row_upper.push_back(kHighsInf);
-    //         lp.num_row_++;
-    //     }
-    // }
-
     lp.a_matrix_.format_ = MatrixFormat::kColwise;
     lp.a_matrix_.start_ = start;
     lp.a_matrix_.index_ = index;
@@ -271,6 +202,9 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
 
     // Pass model to solver
     highs.passModel(lp);
+
+    // Pass starting solution (HiGHS may require MIP start API in future versions)
+    highs.setSolution(start_solution);
 
     // Solve the problem
     highs.run();
@@ -287,8 +221,6 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
             }
         }
 
-        result = refine_solution(result, n, adj);
-
         return result;
     } else {
         // No optimal solution found, return all ones
@@ -299,22 +231,26 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
 }
 
 int main(int argc, char* argv[]) {
+    cin.tie(nullptr);
     ios_base::sync_with_stdio(false);
     if (argc != 3) {
         cerr << "Usage: " << argv[0] << " <input_file> <output_file>\n";
         return 1;
     }
-    ifstream in(argv[1]);  
-    ofstream out(argv[2]); 
 
     // Read input
-    auto [n, adj] = read_graph(in);
+    auto [n, adj] = read_graph(argv[1]);
 
     // Solve ILP and get binary string
     string result = solve_power_plants(n, adj);
+    
+    // Write output using fwrite
+    FILE* file = fopen(argv[2], "w");
     if (!result.empty()) {
-        out << result << '\n';
+        fwrite(result.c_str(), 1, result.size(), file);
+        fwrite("\n", 1, 1, file);
     }
+    fclose(file);
 
     return 0;
 }
