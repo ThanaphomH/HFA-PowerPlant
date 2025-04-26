@@ -75,19 +75,21 @@ pair<int, vector<vector<int>>> read_graph(const char* filename) {
 }
 
 // Function to find a greedy dominating set 
-vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
+vector<double> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
     vector<bool> covered(n, false);
-    vector<int> solution;
+    vector<double> solution(n, 0.0); // Initialize with 0.0 for HiGHS
     vector<int> uncovered_count(n, 0);
     priority_queue<pair<int, int>> pq;
     set<int> active_vertices;
 
+    // Initialize priority queue and counts
     for (int i = 0; i < n; ++i) {
-        uncovered_count[i] = adj[i].size() + 1;
+        uncovered_count[i] = adj[i].size() + 1; // Self + neighbors
         pq.push({uncovered_count[i], i});
         active_vertices.insert(i);
     }
 
+    // Greedy selection
     while (!active_vertices.empty()) {
         while (!pq.empty() && covered[pq.top().second]) {
             pq.pop();
@@ -99,10 +101,11 @@ vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
 
         if (covered[best_vertex]) continue;
 
-        solution.push_back(best_vertex);
+        solution[best_vertex] = 1.0; // Mark vertex in solution
         covered[best_vertex] = true;
         active_vertices.erase(best_vertex);
 
+        // Update neighbors
         for (int j : adj[best_vertex]) {
             if (!covered[j]) {
                 covered[j] = true;
@@ -116,6 +119,7 @@ vector<int> greedy_dominating_set(int n, const vector<vector<int>>& adj) {
             }
         }
 
+        // Update neighbors of neighbors
         for (int j : adj[best_vertex]) {
             for (int k : adj[j]) {
                 if (!covered[k]) {
@@ -139,13 +143,10 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
     highs.setOptionValue("mip_heuristic_effort", 0.5);
     highs.setOptionValue("presolve", "on");
 
-    vector<int> greedy_solution = greedy_dominating_set(n, adj);
-    HighsSolution start_solution;
-    start_solution.col_value.resize(n, 0.0);
-    for (int i : greedy_solution) start_solution.col_value[i] = 1.0;
-    for (int i = 0; i < n; ++i) {
-        if (adj[i].empty()) start_solution.col_value[i] = 1.0;
-    }
+    vector<double> start_solution = greedy_dominating_set(n, adj);
+    HighsSolution highs_solution;
+    highs_solution.col_value = start_solution;
+    highs_solution.row_dual.clear();
 
     // Initialize model
     HighsLp lp;
@@ -204,7 +205,7 @@ string solve_power_plants(int n, const vector<vector<int>>& adj) {
     highs.passModel(lp);
 
     // Pass starting solution (HiGHS may require MIP start API in future versions)
-    highs.setSolution(start_solution);
+    highs.setSolution(highs_solution);
 
     // Solve the problem
     highs.run();
